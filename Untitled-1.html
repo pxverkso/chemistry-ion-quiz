@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ion Master - Chemistry Quiz</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --card-hover: #334155;
+      --text: #f1f5f9;
+      --text-dim: #94a3b8;
+      --accent: #38bdf8;
+      --accent-glow: rgba(56, 189, 248, 0.3);
+      --success: #4ade80;
+      --success-bg: rgba(74, 222, 128, 0.15);
+      --error: #f87171;
+      --error-bg: rgba(248, 113, 113, 0.15);
+      --warning: #fbbf24;
+      --cation: #c084fc;
+      --anion: #38bdf8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px;
+    }
+
+    .app-container {
+      width: 100%;
+      max-width: 600px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .header h1 {
+      font-size: 1.75rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--accent), var(--cation));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 4px;
+    }
+
+    .header p {
+      color: var(--text-dim);
+      font-size: 0.9rem;
+    }
+
+    .stats-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--card);
+      border-radius: 16px;
+      padding: 14px 20px;
+      margin-bottom: 20px;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .stat { text-align: center; }
+
+    .stat-value {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .stat-label {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: 2px;
+    }
+
+    .streak-value { color: var(--warning); }
+    .accuracy-value { color: var(--success); }
+
+    .progress-container {
+      width: 100%;
+      height: 6px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 3px;
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--cation));
+      border-radius: 3px;
+      transition: width 0.4s ease;
+      width: 0%;
+    }
+
+    .mode-selector {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .mode-btn {
+      background: var(--card);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: var(--text-dim);
+      padding: 8px 16px;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+
+    .mode-btn:hover { background: var(--card-hover); }
+    .mode-btn.active {
+      background: var(--accent);
+      color: var(--bg);
+      border-color: var(--accent);
+      box-shadow: 0 0 20px var(--accent-glow);
+    }
+
+    .quiz-card {
+      background: var(--card);
+      border-radius: 24px;
+      padding: 32px 24px;
+      text-align: center;
+      border: 1px solid rgba(255,255,255,0.05);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      margin-bottom: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .quiz-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--cation));
+      opacity: 0.6;
+    }
+
+    .question-type {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 16px;
+    }
+
+    .question-text {
+      font-size: 2.2rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      word-break: break-word;
+      line-height: 1.3;
+    }
+
+    .question-sub {
+      font-size: 0.9rem;
+      color: var(--text-dim);
+      margin-bottom: 28px;
+    }
+
+    .ion-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 16px;
+    }
+
+    .badge-cation { background: rgba(192, 132, 252, 0.15); color: var(--cation); }
+    .badge-anion { background: rgba(56, 189, 248, 0.15); color: var(--anion); }
+
+    .options-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    .option-btn {
+      background: rgba(255,255,255,0.03);
+      border: 1.5px solid rgba(255,255,255,0.08);
+      color: var(--text);
+      padding: 14px 18px;
+      border-radius: 14px;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: inherit;
+      text-align: left;
+      position: relative;
+    }
+
+    .option-btn:hover:not(:disabled) {
+      background: rgba(255,255,255,0.06);
+      border-color: rgba(255,255,255,0.15);
+      transform: translateY(-1px);
+    }
+
+    .option-btn.correct {
+      background: var(--success-bg);
+      border-color: var(--success);
+      color: var(--success);
+    }
+
+    .option-btn.wrong {
+      background: var(--error-bg);
+      border-color: var(--error);
+      color: var(--error);
+    }
+
+    .option-btn:disabled { cursor: default; }
+
+    .option-letter {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.06);
+      font-size: 0.8rem;
+      font-weight: 700;
+      margin-right: 12px;
+      color: var(--text-dim);
+    }
+
+    .option-btn.correct .option-letter { background: rgba(74,222,128,0.2); color: var(--success); }
+    .option-btn.wrong .option-letter { background: rgba(248,113,113,0.2); color: var(--error); }
+
+    .feedback {
+      margin-top: 20px;
+      padding: 14px;
+      border-radius: 14px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.3s;
+    }
+
+    .feedback.show { opacity: 1; transform: translateY(0); }
+    .feedback.correct { background: var(--success-bg); color: var(--success); }
+    .feedback.wrong { background: var(--error-bg); color: var(--error); }
+
+    .next-btn {
+      margin-top: 16px;
+      background: linear-gradient(135deg, var(--accent), #818cf8);
+      border: none;
+      color: var(--bg);
+      padding: 12px 32px;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+      box-shadow: 0 4px 20px var(--accent-glow);
+    }
+
+    .next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 30px var(--accent-glow); }
+
+    .start-screen, .end-screen {
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .start-screen h2, .end-screen h2 {
+      font-size: 1.5rem;
+      margin-bottom: 12px;
+    }
+
+    .start-screen p, .end-screen p {
+      color: var(--text-dim);
+      margin-bottom: 28px;
+      line-height: 1.6;
+    }
+
+    .big-btn {
+      background: linear-gradient(135deg, var(--accent), var(--cation));
+      border: none;
+      color: var(--bg);
+      padding: 14px 40px;
+      border-radius: 14px;
+      font-size: 1.1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+      box-shadow: 0 4px 24px rgba(56,189,248,0.3);
+    }
+
+    .big-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 32px rgba(56,189,248,0.4); }
+
+    .settings-group {
+      background: rgba(255,255,255,0.02);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 16px;
+      text-align: left;
+    }
+
+    .settings-group h3 {
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 12px;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .toggle-row:last-child { margin-bottom: 0; }
+
+    .toggle-label {
+      font-size: 0.95rem;
+      font-weight: 500;
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 48px;
+      height: 26px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 13px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .toggle-switch.on { background: var(--accent); }
+
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      top: 3px; left: 3px;
+      width: 20px; height: 20px;
+      background: white;
+      border-radius: 50%;
+      transition: transform 0.2s;
+    }
+
+    .toggle-switch.on::after { transform: translateX(22px); }
+
+    .end-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .end-stat {
+      background: var(--card);
+      border-radius: 14px;
+      padding: 16px;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .end-stat-value {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: var(--accent);
+    }
+
+    .end-stat-label {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      margin-top: 4px;
+    }
+
+    .hidden { display: none !important; }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-6px); }
+      75% { transform: translateX(6px); }
+    }
+
+    .shake { animation: shake 0.3s ease; }
+
+    @keyframes pop {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+
+    .pop { animation: pop 0.3s ease; }
+
+    .formula { font-family: 'Courier New', monospace; }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <div class="header">
+      <h1>Ion Master</h1>
+      <p>Memorize ions. Ace your chemistry test.</p>
+    </div>
+
+    <!-- START SCREEN -->
+    <div id="startScreen" class="start-screen">
+      <div class="settings-group">
+        <h3>Quiz Mode</h3>
+        <div class="toggle-row">
+          <span class="toggle-label">Formula → Name</span>
+          <div class="toggle-switch on" id="toggleFormulaToName" onclick="toggleMode('formulaToName')"></div>
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-label">Name → Formula</span>
+          <div class="toggle-switch on" id="toggleNameToFormula" onclick="toggleMode('nameToFormula')"></div>
+        </div>
+      </div>
+      <div class="settings-group">
+        <h3>Ion Types</h3>
+        <div class="toggle-row">
+          <span class="toggle-label">Cations</span>
+          <div class="toggle-switch on" id="toggleCations" onclick="toggleType('cations')"></div>
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-label">Anions</span>
+          <div class="toggle-switch on" id="toggleAnions" onclick="toggleType('anions')"></div>
+        </div>
+      </div>
+      <button class="big-btn" onclick="startQuiz()">Start Quiz</button>
+    </div>
+
+    <!-- QUIZ SCREEN -->
+    <div id="quizScreen" class="hidden">
+      <div class="stats-bar">
+        <div class="stat">
+          <div class="stat-value" id="scoreDisplay">0</div>
+          <div class="stat-label">Score</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value streak-value" id="streakDisplay">0</div>
+          <div class="stat-label">Streak</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value accuracy-value" id="accuracyDisplay">--</div>
+          <div class="stat-label">Accuracy</div>
+        </div>
+      </div>
+
+      <div class="progress-container">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+
+      <div class="mode-selector">
+        <button class="mode-btn active" id="modeAll" onclick="setFilter('all')">All</button>
+        <button class="mode-btn" id="modeCations" onclick="setFilter('cations')">Cations</button>
+        <button class="mode-btn" id="modeAnions" onclick="setFilter('anions')">Anions</button>
+      </div>
+
+      <div class="quiz-card" id="quizCard">
+        <div class="ion-badge" id="ionBadge">Anion</div>
+        <div class="question-type" id="questionType">What is the name of this ion?</div>
+        <div class="question-text formula" id="questionText">SO₄²⁻</div>
+        <div class="question-sub" id="questionSub">Select the correct answer</div>
+
+        <div class="options-grid" id="optionsGrid"></div>
+
+        <div class="feedback" id="feedback"></div>
+        <button class="next-btn hidden" id="nextBtn" onclick="nextQuestion()">Next →</button>
+      </div>
+    </div>
+
+    <!-- END SCREEN -->
+    <div id="endScreen" class="end-screen hidden">
+      <h2>Quiz Complete! 🎉</h2>
+      <p id="endMessage">Great job memorizing those ions!</p>
+      <div class="end-stats">
+        <div class="end-stat">
+          <div class="end-stat-value" id="endScore">0</div>
+          <div class="end-stat-label">Correct</div>
+        </div>
+        <div class="end-stat">
+          <div class="end-stat-value" id="endTotal">0</div>
+          <div class="end-stat-label">Total</div>
+        </div>
+        <div class="end-stat">
+          <div class="end-stat-value" id="endAccuracy">0%</div>
+          <div class="end-stat-label">Accuracy</div>
+        </div>
+        <div class="end-stat">
+          <div class="end-stat-value" id="endStreak">0</div>
+          <div class="end-stat-label">Best Streak</div>
+        </div>
+      </div>
+      <button class="big-btn" onclick="restartQuiz()">Quiz Again</button>
+    </div>
+  </div>
+
+  <script>
+    const cations = [
+      { formula: "Ag⁺", name: "Silver", charge: "+1" },
+      { formula: "Zn²⁺", name: "Zinc", charge: "+2" },
+      { formula: "Hg₂²⁺", name: "Mercury(I)", charge: "+2" },
+      { formula: "NH₄⁺", name: "Ammonium", charge: "+1" }
+    ];
+
+    const anions = [
+      { formula: "NO₂⁻", name: "Nitrite", charge: "-1" },
+      { formula: "NO₃⁻", name: "Nitrate", charge: "-1" },
+      { formula: "SO₃²⁻", name: "Sulfite", charge: "-2" },
+      { formula: "SO₄²⁻", name: "Sulfate", charge: "-2" },
+      { formula: "HSO₄⁻", name: "Hydrogen sulfate (bisulfate)", charge: "-1" },
+      { formula: "OH⁻", name: "Hydroxide", charge: "-1" },
+      { formula: "CN⁻", name: "Cyanide", charge: "-1" },
+      { formula: "PO₄³⁻", name: "Phosphate", charge: "-3" },
+      { formula: "HPO₄²⁻", name: "Hydrogen phosphate", charge: "-2" },
+      { formula: "H₂PO₄⁻", name: "Dihydrogen phosphate", charge: "-1" },
+      { formula: "NCS⁻", name: "Thiocyanate", charge: "-1" },
+      { formula: "CO₃²⁻", name: "Carbonate", charge: "-2" },
+      { formula: "HCO₃⁻", name: "Hydrogen carbonate (bicarbonate)", charge: "-1" },
+      { formula: "ClO⁻", name: "Hypochlorite", charge: "-1" },
+      { formula: "ClO₂⁻", name: "Chlorite", charge: "-1" },
+      { formula: "ClO₃⁻", name: "Chlorate", charge: "-1" },
+      { formula: "ClO₄⁻", name: "Perchlorate", charge: "-1" },
+      { formula: "BrO⁻", name: "Hypobromite", charge: "-1" },
+      { formula: "BrO₂⁻", name: "Bromite", charge: "-1" },
+      { formula: "BrO₃⁻", name: "Bromate", charge: "-1" },
+      { formula: "BrO₄⁻", name: "Perbromate", charge: "-1" },
+      { formula: "IO⁻", name: "Hypoiodite", charge: "-1" },
+      { formula: "IO₂⁻", name: "Iodite", charge: "-1" },
+      { formula: "IO₃⁻", name: "Iodate", charge: "-1" },
+      { formula: "IO₄⁻", name: "Periodate", charge: "-1" },
+      { formula: "C₂H₃O₂⁻", name: "Acetate", charge: "-1" },
+      { formula: "MnO₄⁻", name: "Permanganate", charge: "-1" },
+      { formula: "Cr₂O₇²⁻", name: "Dichromate", charge: "-2" },
+      { formula: "CrO₄²⁻", name: "Chromate", charge: "-2" },
+      { formula: "O₂²⁻", name: "Peroxide", charge: "-2" },
+      { formula: "C₂O₄²⁻", name: "Oxalate", charge: "-2" },
+      { formula: "NH₂⁻", name: "Amide", charge: "-1" },
+      { formula: "BO₃³⁻", name: "Borate", charge: "-3" },
+      { formula: "S₂O₃²⁻", name: "Thiosulfate", charge: "-2" }
+    ];
+
+    let settings = {
+      formulaToName: true,
+      nameToFormula: true,
+      cations: true,
+      anions: true
+    };
+
+    let state = {
+      questions: [],
+      currentIndex: 0,
+      score: 0,
+      streak: 0,
+      bestStreak: 0,
+      answered: false,
+      filter: 'all'
+    };
+
+    function toggleMode(mode) {
+      settings[mode] = !settings[mode];
+      document.getElementById('toggle' + mode.charAt(0).toUpperCase() + mode.slice(1)).classList.toggle('on', settings[mode]);
+    }
+
+    function toggleType(type) {
+      settings[type] = !settings[type];
+      document.getElementById('toggle' + type.charAt(0).toUpperCase() + type.slice(1)).classList.toggle('on', settings[type]);
+    }
+
+    function shuffle(arr) {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    function generateQuestions() {
+      const pool = [];
+      if (settings.cations) pool.push(...cations.map(c => ({...c, type: 'cation'})));
+      if (settings.anions) pool.push(...anions.map(a => ({...a, type: 'anion'})));
+
+      const modes = [];
+      if (settings.formulaToName) modes.push('formulaToName');
+      if (settings.nameToFormula) modes.push('nameToFormula');
+
+      if (pool.length === 0 || modes.length === 0) return [];
+
+      const qs = [];
+      for (let i = 0; i < 20; i++) {
+        const ion = pool[i % pool.length];
+        const mode = modes[i % modes.length];
+        qs.push({ ion, mode });
+      }
+      return shuffle(qs);
+    }
+
+    function startQuiz() {
+      state.questions = generateQuestions();
+      if (state.questions.length === 0) {
+        alert('Please enable at least one ion type and one quiz mode!');
+        return;
+      }
+      state.currentIndex = 0;
+      state.score = 0;
+      state.streak = 0;
+      state.bestStreak = 0;
+      state.answered = false;
+      state.filter = 'all';
+
+      document.getElementById('startScreen').classList.add('hidden');
+      document.getElementById('endScreen').classList.add('hidden');
+      document.getElementById('quizScreen').classList.remove('hidden');
+      updateStats();
+      renderQuestion();
+    }
+
+    function getFilteredQuestions() {
+      if (state.filter === 'all') return state.questions;
+      return state.questions.filter(q => q.ion.type === state.filter.slice(0, -1));
+    }
+
+    function setFilter(f) {
+      state.filter = f;
+      document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('mode' + f.charAt(0).toUpperCase() + f.slice(1)).classList.add('active');
+      state.currentIndex = 0;
+      state.score = 0;
+      state.streak = 0;
+      state.answered = false;
+      updateStats();
+      renderQuestion();
+    }
+
+    function updateStats() {
+      document.getElementById('scoreDisplay').textContent = state.score;
+      document.getElementById('streakDisplay').textContent = state.streak;
+      const totalAnswered = state.currentIndex;
+      const acc = totalAnswered > 0 ? Math.round((state.score / totalAnswered) * 100) + '%' : '--';
+      document.getElementById('accuracyDisplay').textContent = acc;
+
+      const filtered = getFilteredQuestions();
+      const pct = filtered.length > 0 ? (state.currentIndex / filtered.length) * 100 : 0;
+      document.getElementById('progressFill').style.width = pct + '%';
+    }
+
+    function renderQuestion() {
+      const filtered = getFilteredQuestions();
+      if (state.currentIndex >= filtered.length) {
+        showEndScreen();
+        return;
+      }
+
+      const q = filtered[state.currentIndex];
+      const ion = q.ion;
+      const mode = q.mode;
+
+      state.answered = false;
+      document.getElementById('nextBtn').classList.add('hidden');
+      document.getElementById('feedback').classList.remove('show', 'correct', 'wrong');
+
+      const badge = document.getElementById('ionBadge');
+      badge.textContent = ion.type === 'cation' ? 'Cation' : 'Anion';
+      badge.className = 'ion-badge ' + (ion.type === 'cation' ? 'badge-cation' : 'badge-anion');
+
+      const qType = document.getElementById('questionType');
+      const qText = document.getElementById('questionText');
+      const qSub = document.getElementById('questionSub');
+
+      if (mode === 'formulaToName') {
+        qType.textContent = 'What is the name of this ion?';
+        qText.textContent = ion.formula;
+        qSub.textContent = 'Select the correct name from the options below';
+      } else {
+        qType.textContent = 'What is the formula of this ion?';
+        qText.textContent = ion.name;
+        qSub.textContent = 'Select the correct formula from the options below';
+      }
+
+      const allIons = [...cations.map(c => ({...c, type: 'cation'})), ...anions.map(a => ({...a, type: 'anion'}))];
+      const wrongPool = allIons.filter(i => i.name !== ion.name);
+      const wrongs = shuffle(wrongPool).slice(0, 3);
+      const options = shuffle([ion, ...wrongs]);
+
+      const grid = document.getElementById('optionsGrid');
+      grid.innerHTML = '';
+      const letters = ['A', 'B', 'C', 'D'];
+
+      options.forEach((opt, idx) => {
+        const btn = document.createElement('button');
+        btn.className = 'option-btn';
+        const displayText = mode === 'formulaToName' ? opt.name : opt.formula;
+        btn.innerHTML = `<span class="option-letter">${letters[idx]}</span>${displayText}`;
+        btn.onclick = () => selectAnswer(btn, opt, ion, mode);
+        grid.appendChild(btn);
+      });
+
+      document.getElementById('quizCard').classList.remove('shake', 'pop');
+    }
+
+    function selectAnswer(btn, selected, correct, mode) {
+      if (state.answered) return;
+      state.answered = true;
+
+      const isCorrect = selected.name === correct.name;
+      const allBtns = document.querySelectorAll('.option-btn');
+
+      allBtns.forEach(b => {
+        b.disabled = true;
+        const text = b.textContent.slice(1);
+        const match = mode === 'formulaToName'
+          ? (text === correct.name)
+          : (text === correct.formula);
+        if (match) {
+          b.classList.add('correct');
+        }
+      });
+
+      const feedback = document.getElementById('feedback');
+
+      if (isCorrect) {
+        state.score++;
+        state.streak++;
+        if (state.streak > state.bestStreak) state.bestStreak = state.streak;
+        btn.classList.add('correct');
+        document.getElementById('quizCard').classList.add('pop');
+        feedback.textContent = '✅ Correct! Nice job.';
+        feedback.className = 'feedback correct show';
+      } else {
+        state.streak = 0;
+        btn.classList.add('wrong');
+        document.getElementById('quizCard').classList.add('shake');
+        const correctDisplay = mode === 'formulaToName' ? correct.name : correct.formula;
+        feedback.textContent = `❌ Wrong! The correct answer is ${correctDisplay}`;
+        feedback.className = 'feedback wrong show';
+      }
+
+      updateStats();
+      document.getElementById('nextBtn').classList.remove('hidden');
+    }
+
+    function nextQuestion() {
+      state.currentIndex++;
+      renderQuestion();
+      updateStats();
+    }
+
+    function showEndScreen() {
+      document.getElementById('quizScreen').classList.add('hidden');
+      document.getElementById('endScreen').classList.remove('hidden');
+
+      const filtered = getFilteredQuestions();
+      const total = filtered.length;
+      const accuracy = total > 0 ? Math.round((state.score / total) * 100) : 0;
+
+      document.getElementById('endScore').textContent = state.score;
+      document.getElementById('endTotal').textContent = total;
+      document.getElementById('endAccuracy').textContent = accuracy + '%';
+      document.getElementById('endStreak').textContent = state.bestStreak;
+
+      let msg = '';
+      if (accuracy >= 90) msg = 'Outstanding! You\'re basically a chemist now! 🧪';
+      else if (accuracy >= 75) msg = 'Great work! You know your ions well! ⚡';
+      else if (accuracy >= 50) msg = 'Good effort! Keep practicing those tricky ones. 📚';
+      else msg = 'Keep studying! You\'ll get there. 💪';
+      document.getElementById('endMessage').textContent = msg;
+    }
+
+    function restartQuiz() {
+      document.getElementById('endScreen').classList.add('hidden');
+      document.getElementById('startScreen').classList.remove('hidden');
+    }
+  </script>
+</body>
+</html>
