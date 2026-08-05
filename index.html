@@ -22,6 +22,7 @@
       --cation: #c084fc;
       --anion: #38bdf8;
       --tricky: #fb923c;
+      --typing: #a78bfa;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -163,6 +164,11 @@
       opacity: 0.8;
     }
 
+    .quiz-card.typing::before {
+      background: linear-gradient(90deg, var(--typing), var(--accent));
+      opacity: 0.8;
+    }
+
     .question-type {
       font-size: 0.75rem;
       color: var(--text-dim);
@@ -199,6 +205,7 @@
     .badge-cation { background: rgba(192, 132, 252, 0.15); color: var(--cation); }
     .badge-anion { background: rgba(56, 189, 248, 0.15); color: var(--anion); }
     .badge-tricky { background: rgba(251, 146, 60, 0.15); color: var(--tricky); margin-left: 8px; }
+    .badge-typing { background: rgba(167, 139, 250, 0.15); color: var(--typing); margin-left: 8px; }
 
     .options-grid {
       display: grid;
@@ -257,6 +264,72 @@
 
     .option-btn.correct .option-letter { background: rgba(74,222,128,0.2); color: var(--success); }
     .option-btn.wrong .option-letter { background: rgba(248,113,113,0.2); color: var(--error); }
+
+    .typing-area {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .typing-input {
+      width: 100%;
+      background: rgba(255,255,255,0.03);
+      border: 1.5px solid rgba(255,255,255,0.1);
+      color: var(--text);
+      padding: 16px 20px;
+      border-radius: 14px;
+      font-size: 1.1rem;
+      font-family: 'Courier New', monospace;
+      text-align: center;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .typing-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(56,189,248,0.15);
+    }
+
+    .typing-input.correct-input {
+      border-color: var(--success);
+      background: var(--success-bg);
+      color: var(--success);
+    }
+
+    .typing-input.wrong-input {
+      border-color: var(--error);
+      background: var(--error-bg);
+      color: var(--error);
+    }
+
+    .typing-input:disabled {
+      opacity: 0.7;
+    }
+
+    .typing-hint {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      margin-top: 4px;
+    }
+
+    .submit-btn {
+      background: linear-gradient(135deg, var(--accent), #818cf8);
+      border: none;
+      color: var(--bg);
+      padding: 12px 36px;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+      box-shadow: 0 4px 20px var(--accent-glow);
+      width: 100%;
+    }
+
+    .submit-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 30px var(--accent-glow); }
+    .submit-btn:disabled { opacity: 0.5; cursor: default; }
 
     .feedback {
       margin-top: 20px;
@@ -374,6 +447,7 @@
 
     .toggle-switch.on { background: var(--accent); }
     .toggle-switch.on.tricky-on { background: var(--tricky); }
+    .toggle-switch.on.typing-on { background: var(--typing); }
 
     .toggle-switch::after {
       content: '';
@@ -438,7 +512,7 @@
   <div class="app-container">
     <div class="header">
       <h1>Ion Master</h1>
-      <p>Memorize ions. Ace your chemistry test. Vibe Coded under PXVER.KSO </p>
+      <p>Memorize ions. Ace your chemistry test.</p>
     </div>
 
     <!-- START SCREEN -->
@@ -463,6 +537,16 @@
         <div class="toggle-row">
           <span class="toggle-label">Anions</span>
           <div class="toggle-switch on" id="toggleAnions" onclick="toggleType('anions')"></div>
+        </div>
+      </div>
+      <div class="settings-group">
+        <h3>Input Style</h3>
+        <div class="toggle-row">
+          <span class="toggle-label">
+            Typing Mode
+            <small>Type answers instead of multiple choice</small>
+          </span>
+          <div class="toggle-switch" id="toggleTyping" onclick="toggleTyping()"></div>
         </div>
       </div>
       <div class="settings-group">
@@ -509,12 +593,21 @@
         <div>
           <span class="ion-badge" id="ionBadge">Anion</span>
           <span class="ion-badge badge-tricky hidden" id="trickyBadge">Tricky</span>
+          <span class="ion-badge badge-typing hidden" id="typingBadge">Typing</span>
         </div>
         <div class="question-type" id="questionType">What is the name of this ion?</div>
         <div class="question-text formula" id="questionText">SO₄²⁻</div>
         <div class="question-sub" id="questionSub">Select the correct answer</div>
 
         <div class="options-grid" id="optionsGrid"></div>
+
+        <div class="typing-area hidden" id="typingArea">
+          <input type="text" class="typing-input" id="typingInput" placeholder="Type your answer..." autocomplete="off" spellcheck="false">
+          <div class="typing-hint" id="typingHint">
+            Tips: extra spaces don't matter • charge can go at start or end • aliases accepted
+          </div>
+          <button class="submit-btn" id="submitBtn" onclick="submitTypedAnswer()">Check Answer</button>
+        </div>
 
         <div class="feedback" id="feedback"></div>
         <button class="next-btn hidden" id="nextBtn" onclick="nextQuestion()">Next →</button>
@@ -592,7 +685,6 @@
       { formula: "S₂O₃²⁻", name: "Thiosulfate", charge: "-2" }
     ];
 
-    // Families of confusingly similar ions
     const families = {
       nitrogen_oxyanions: ["Nitrite", "Nitrate"],
       sulfur_oxyanions: ["Sulfite", "Sulfate", "Hydrogen sulfate (bisulfate)", "Thiosulfate"],
@@ -624,7 +716,8 @@
       nameToFormula: true,
       cations: true,
       anions: true,
-      tricky: false
+      tricky: false,
+      typing: false
     };
 
     let state = {
@@ -652,6 +745,13 @@
       const el = document.getElementById('toggleTricky');
       el.classList.toggle('on', settings.tricky);
       el.classList.toggle('tricky-on', settings.tricky);
+    }
+
+    function toggleTyping() {
+      settings.typing = !settings.typing;
+      const el = document.getElementById('toggleTyping');
+      el.classList.toggle('on', settings.typing);
+      el.classList.toggle('typing-on', settings.typing);
     }
 
     function shuffle(arr) {
@@ -691,15 +791,10 @@
         .filter(i => i.name !== correctIon.name)
         .map(i => {
           let score = 0;
-          // Same charge is very tricky
           if (i.charge === correctIon.charge) score += 10;
-          // Same first letter of name
           if (i.name.charAt(0).toLowerCase() === correctFirstLetter) score += 8;
-          // Same chemical family (e.g., all halogen oxyanions)
           if (correctFamily && getFamily(i.name) === correctFamily) score += 25;
-          // Same broad type
           if (i.type === correctIon.type) score += 2;
-          // Same word root / prefix patterns
           const correctPrefix = correctIon.name.split(' ')[0].toLowerCase();
           const ionPrefix = i.name.split(' ')[0].toLowerCase();
           if (correctPrefix === ionPrefix && correctPrefix.length > 3) score += 12;
@@ -710,7 +805,6 @@
 
       const selected = scored.slice(0, count).map(s => s.ion);
 
-      // Fill with random remaining if not enough tricky ones found
       if (selected.length < count) {
         const usedNames = new Set([correctIon.name, ...selected.map(i => i.name)]);
         const remaining = allIons.filter(i => !usedNames.has(i.name));
@@ -721,6 +815,71 @@
 
       return selected;
     }
+
+    // ========== FORGIVING INPUT NORMALIZERS ==========
+
+    function normalizeFormula(formula) {
+      let s = formula.toLowerCase();
+      // Unicode superscripts & subscripts → plain
+      const map = {
+        '⁰':'0','¹':'1','²':'2','³':'3','⁴':'4','⁵':'5','⁶':'6','⁷':'7','⁸':'8','⁹':'9',
+        '⁺':'+','⁻':'-',
+        '₀':'0','₁':'1','₂':'2','₃':'3','₄':'4','₅':'5','₆':'6','₇':'7','₈':'8','₉':'9'
+      };
+      s = s.replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻₀₁₂₃₄₅₆₇₈₉]/g, c => map[c] || c);
+      // Remove all whitespace
+      s = s.replace(/\s+/g, '');
+      // Remove caret
+      s = s.replace(/\^/g, '');
+      // Remove parentheses around charge like (2-)
+      s = s.replace(/\((\d?[+-])\)/g, '$1');
+      // If charge at start, move to end
+      if (/^[+-]/.test(s)) {
+        s = s.slice(1) + s[0];
+      }
+      if (/^\d[+-]/.test(s)) {
+        s = s.slice(2) + s.slice(0,2);
+      }
+      return s;
+    }
+
+    function normalizeName(name) {
+      return name.toLowerCase().replace(/\s+/g, ' ').trim();
+    }
+
+    function checkTypedAnswer(input, correctIon, mode) {
+      const raw = input.trim();
+      if (!raw) return false;
+
+      if (mode === 'formulaToName') {
+        const inputNorm = normalizeName(raw);
+        const correctNorm = normalizeName(correctIon.name);
+
+        // Exact match
+        if (inputNorm === correctNorm) return true;
+
+        // Match alias in parentheses, e.g. "bisulfate"
+        const aliasMatch = correctIon.name.match(/\(([^)]+)\)/);
+        if (aliasMatch) {
+          const aliasNorm = normalizeName(aliasMatch[1]);
+          if (inputNorm === aliasNorm) return true;
+        }
+
+        // Match main name before parentheses, e.g. "hydrogen sulfate"
+        const mainName = correctIon.name.split('(')[0].trim();
+        if (inputNorm === normalizeName(mainName)) return true;
+
+        // Accept if user typed the formula by accident when asked for name
+        if (normalizeFormula(raw) === normalizeFormula(correctIon.formula)) return true;
+
+        return false;
+      } else {
+        // Name → Formula
+        return normalizeFormula(raw) === normalizeFormula(correctIon.formula);
+      }
+    }
+
+    // ========== QUIZ FLOW ==========
 
     function startQuiz() {
       state.questions = generateQuestions();
@@ -786,19 +945,24 @@
       document.getElementById('nextBtn').classList.add('hidden');
       document.getElementById('feedback').classList.remove('show', 'correct', 'wrong');
 
+      // Badges
       const badge = document.getElementById('ionBadge');
       badge.textContent = ion.type === 'cation' ? 'Cation' : 'Anion';
       badge.className = 'ion-badge ' + (ion.type === 'cation' ? 'badge-cation' : 'badge-anion');
 
       const trickyBadge = document.getElementById('trickyBadge');
-      if (settings.tricky) {
-        trickyBadge.classList.remove('hidden');
-        document.getElementById('quizCard').classList.add('tricky');
-      } else {
-        trickyBadge.classList.add('hidden');
-        document.getElementById('quizCard').classList.remove('tricky');
-      }
+      trickyBadge.classList.toggle('hidden', !settings.tricky || settings.typing);
 
+      const typingBadge = document.getElementById('typingBadge');
+      typingBadge.classList.toggle('hidden', !settings.typing);
+
+      // Card accent color
+      const card = document.getElementById('quizCard');
+      card.classList.remove('tricky', 'typing');
+      if (settings.typing) card.classList.add('typing');
+      else if (settings.tricky) card.classList.add('tricky');
+
+      // Question text
       const qType = document.getElementById('questionType');
       const qText = document.getElementById('questionText');
       const qSub = document.getElementById('questionSub');
@@ -806,39 +970,101 @@
       if (mode === 'formulaToName') {
         qType.textContent = 'What is the name of this ion?';
         qText.textContent = ion.formula;
-        qSub.textContent = settings.tricky ? 'Careful — the wrong answers look very similar!' : 'Select the correct name from the options below';
+        qSub.textContent = settings.typing ? 'Type the name (aliases & extra spaces accepted)' : 'Select the correct name from the options below';
       } else {
         qType.textContent = 'What is the formula of this ion?';
         qText.textContent = ion.name;
-        qSub.textContent = settings.tricky ? 'Careful — the wrong answers look very similar!' : 'Select the correct formula from the options below';
+        qSub.textContent = settings.typing ? 'Type the formula (superscripts, carets, and extra spaces accepted)' : 'Select the correct formula from the options below';
       }
 
-      const allIons = [...cations.map(c => ({...c, type: 'cation'})), ...anions.map(a => ({...a, type: 'anion'}))];
-
-      let wrongs;
-      if (settings.tricky) {
-        wrongs = getTrickyDistractors(ion, allIons, 3);
-      } else {
-        const wrongPool = allIons.filter(i => i.name !== ion.name);
-        wrongs = shuffle(wrongPool).slice(0, 3);
-      }
-
-      const options = shuffle([ion, ...wrongs]);
-
+      // Render input or buttons
       const grid = document.getElementById('optionsGrid');
-      grid.innerHTML = '';
-      const letters = ['A', 'B', 'C', 'D'];
+      const typingArea = document.getElementById('typingArea');
+      const typingInput = document.getElementById('typingInput');
+      const submitBtn = document.getElementById('submitBtn');
 
-      options.forEach((opt, idx) => {
-        const btn = document.createElement('button');
-        btn.className = 'option-btn';
-        const displayText = mode === 'formulaToName' ? opt.name : opt.formula;
-        btn.innerHTML = `<span class="option-letter">${letters[idx]}</span>${displayText}`;
-        btn.onclick = () => selectAnswer(btn, opt, ion, mode);
-        grid.appendChild(btn);
-      });
+      typingInput.value = '';
+      typingInput.classList.remove('correct-input', 'wrong-input');
+      typingInput.disabled = false;
+      submitBtn.disabled = false;
+
+      if (settings.typing) {
+        grid.classList.add('hidden');
+        typingArea.classList.remove('hidden');
+        typingInput.focus();
+
+        // Enter key submits
+        typingInput.onkeydown = (e) => {
+          if (e.key === 'Enter') submitTypedAnswer();
+        };
+      } else {
+        grid.classList.remove('hidden');
+        typingArea.classList.add('hidden');
+
+        const allIons = [...cations.map(c => ({...c, type: 'cation'})), ...anions.map(a => ({...a, type: 'anion'}))];
+
+        let wrongs;
+        if (settings.tricky) {
+          wrongs = getTrickyDistractors(ion, allIons, 3);
+        } else {
+          const wrongPool = allIons.filter(i => i.name !== ion.name);
+          wrongs = shuffle(wrongPool).slice(0, 3);
+        }
+
+        const options = shuffle([ion, ...wrongs]);
+        grid.innerHTML = '';
+        const letters = ['A', 'B', 'C', 'D'];
+
+        options.forEach((opt, idx) => {
+          const btn = document.createElement('button');
+          btn.className = 'option-btn';
+          const displayText = mode === 'formulaToName' ? opt.name : opt.formula;
+          btn.innerHTML = `<span class="option-letter">${letters[idx]}</span>${displayText}`;
+          btn.onclick = () => selectAnswer(btn, opt, ion, mode);
+          grid.appendChild(btn);
+        });
+      }
 
       document.getElementById('quizCard').classList.remove('shake', 'pop');
+    }
+
+    function submitTypedAnswer() {
+      if (state.answered) return;
+
+      const filtered = getFilteredQuestions();
+      const q = filtered[state.currentIndex];
+      const input = document.getElementById('typingInput').value;
+
+      const isCorrect = checkTypedAnswer(input, q.ion, q.mode);
+      state.answered = true;
+
+      const typingInput = document.getElementById('typingInput');
+      const submitBtn = document.getElementById('submitBtn');
+      const feedback = document.getElementById('feedback');
+      const card = document.getElementById('quizCard');
+
+      typingInput.disabled = true;
+      submitBtn.disabled = true;
+
+      if (isCorrect) {
+        state.score++;
+        state.streak++;
+        if (state.streak > state.bestStreak) state.bestStreak = state.streak;
+        typingInput.classList.add('correct-input');
+        card.classList.add('pop');
+        feedback.textContent = '✅ Correct! Nice job.';
+        feedback.className = 'feedback correct show';
+      } else {
+        state.streak = 0;
+        typingInput.classList.add('wrong-input');
+        card.classList.add('shake');
+        const correctDisplay = q.mode === 'formulaToName' ? q.ion.name : q.ion.formula;
+        feedback.innerHTML = `❌ Wrong! The correct answer is <strong>${correctDisplay}</strong>`;
+        feedback.className = 'feedback wrong show';
+      }
+
+      updateStats();
+      document.getElementById('nextBtn').classList.remove('hidden');
     }
 
     function selectAnswer(btn, selected, correct, mode) {
@@ -902,7 +1128,11 @@
       document.getElementById('endStreak').textContent = state.bestStreak;
 
       let msg = '';
-      if (settings.tricky) {
+      if (settings.typing) {
+        if (accuracy >= 85) msg = 'Amazing! You typed your way to victory! ⌨️✨';
+        else if (accuracy >= 65) msg = 'Great typing skills — keep drilling! ⚡';
+        else msg = 'Typing mode is tough — practice makes perfect! 💪';
+      } else if (settings.tricky) {
         if (accuracy >= 80) msg = 'Incredible! You crushed Tricky Mode! 🧠🔥';
         else if (accuracy >= 60) msg = 'Solid work — those similar ions are tough! ⚡';
         else msg = 'Tricky Mode is brutal — keep grinding! 💪';
