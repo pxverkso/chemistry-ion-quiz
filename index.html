@@ -21,6 +21,7 @@
       --warning: #fbbf24;
       --cation: #c084fc;
       --anion: #38bdf8;
+      --tricky: #fb923c;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -157,6 +158,11 @@
       opacity: 0.6;
     }
 
+    .quiz-card.tricky::before {
+      background: linear-gradient(90deg, var(--tricky), var(--error));
+      opacity: 0.8;
+    }
+
     .question-type {
       font-size: 0.75rem;
       color: var(--text-dim);
@@ -192,6 +198,7 @@
 
     .badge-cation { background: rgba(192, 132, 252, 0.15); color: var(--cation); }
     .badge-anion { background: rgba(56, 189, 248, 0.15); color: var(--anion); }
+    .badge-tricky { background: rgba(251, 146, 60, 0.15); color: var(--tricky); margin-left: 8px; }
 
     .options-grid {
       display: grid;
@@ -345,6 +352,14 @@
       font-weight: 500;
     }
 
+    .toggle-label small {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      font-weight: 400;
+      margin-top: 2px;
+    }
+
     .toggle-switch {
       position: relative;
       width: 48px;
@@ -353,9 +368,12 @@
       border-radius: 13px;
       cursor: pointer;
       transition: background 0.2s;
+      flex-shrink: 0;
+      margin-left: 12px;
     }
 
     .toggle-switch.on { background: var(--accent); }
+    .toggle-switch.on.tricky-on { background: var(--tricky); }
 
     .toggle-switch::after {
       content: '';
@@ -420,7 +438,7 @@
   <div class="app-container">
     <div class="header">
       <h1>Ion Master</h1>
-      <p>Memorize ions. Ace your chemistry test. Vibe Coded under PXVER.KSO </p>
+      <p>Memorize ions. Ace your chemistry test.</p>
     </div>
 
     <!-- START SCREEN -->
@@ -445,6 +463,16 @@
         <div class="toggle-row">
           <span class="toggle-label">Anions</span>
           <div class="toggle-switch on" id="toggleAnions" onclick="toggleType('anions')"></div>
+        </div>
+      </div>
+      <div class="settings-group">
+        <h3>Difficulty</h3>
+        <div class="toggle-row">
+          <span class="toggle-label">
+            Tricky Mode
+            <small>Wrong answers are similar ions (same charge, family, or starting letter)</small>
+          </span>
+          <div class="toggle-switch" id="toggleTricky" onclick="toggleTricky()"></div>
         </div>
       </div>
       <button class="big-btn" onclick="startQuiz()">Start Quiz</button>
@@ -478,7 +506,10 @@
       </div>
 
       <div class="quiz-card" id="quizCard">
-        <div class="ion-badge" id="ionBadge">Anion</div>
+        <div>
+          <span class="ion-badge" id="ionBadge">Anion</span>
+          <span class="ion-badge badge-tricky hidden" id="trickyBadge">Tricky</span>
+        </div>
         <div class="question-type" id="questionType">What is the name of this ion?</div>
         <div class="question-text formula" id="questionText">SO₄²⁻</div>
         <div class="question-sub" id="questionSub">Select the correct answer</div>
@@ -561,11 +592,39 @@
       { formula: "S₂O₃²⁻", name: "Thiosulfate", charge: "-2" }
     ];
 
+    // Families of confusingly similar ions
+    const families = {
+      nitrogen_oxyanions: ["Nitrite", "Nitrate"],
+      sulfur_oxyanions: ["Sulfite", "Sulfate", "Hydrogen sulfate (bisulfate)", "Thiosulfate"],
+      phosphate_series: ["Phosphate", "Hydrogen phosphate", "Dihydrogen phosphate"],
+      carbonate_series: ["Carbonate", "Hydrogen carbonate (bicarbonate)"],
+      chlorine_oxyanions: ["Hypochlorite", "Chlorite", "Chlorate", "Perchlorate"],
+      bromine_oxyanions: ["Hypobromite", "Bromite", "Bromate", "Perbromate"],
+      iodine_oxyanions: ["Hypoiodite", "Iodite", "Iodate", "Periodate"],
+      halogen_per: ["Perchlorate", "Perbromate", "Periodate"],
+      halogen_hypo: ["Hypochlorite", "Hypobromite", "Hypoiodite"],
+      halogen_ate: ["Chlorate", "Bromate", "Iodate"],
+      halogen_ite: ["Chlorite", "Bromite", "Iodite"],
+      chromate_group: ["Chromate", "Dichromate"],
+      small_minus1: ["Hydroxide", "Cyanide", "Amide", "Thiocyanate", "Acetate"],
+      hydrogen_oxyanions: ["Hydrogen sulfate (bisulfate)", "Hydrogen phosphate", "Dihydrogen phosphate", "Hydrogen carbonate (bicarbonate)"],
+      metal_cations: ["Silver", "Zinc", "Mercury(I)"],
+      per_metal_oxyanions: ["Permanganate", "Chromate", "Dichromate"]
+    };
+
+    function getFamily(name) {
+      for (const [fam, members] of Object.entries(families)) {
+        if (members.includes(name)) return fam;
+      }
+      return null;
+    }
+
     let settings = {
       formulaToName: true,
       nameToFormula: true,
       cations: true,
-      anions: true
+      anions: true,
+      tricky: false
     };
 
     let state = {
@@ -586,6 +645,13 @@
     function toggleType(type) {
       settings[type] = !settings[type];
       document.getElementById('toggle' + type.charAt(0).toUpperCase() + type.slice(1)).classList.toggle('on', settings[type]);
+    }
+
+    function toggleTricky() {
+      settings.tricky = !settings.tricky;
+      const el = document.getElementById('toggleTricky');
+      el.classList.toggle('on', settings.tricky);
+      el.classList.toggle('tricky-on', settings.tricky);
     }
 
     function shuffle(arr) {
@@ -615,6 +681,45 @@
         qs.push({ ion, mode });
       }
       return shuffle(qs);
+    }
+
+    function getTrickyDistractors(correctIon, allIons, count = 3) {
+      const correctFamily = getFamily(correctIon.name);
+      const correctFirstLetter = correctIon.name.charAt(0).toLowerCase();
+
+      const scored = allIons
+        .filter(i => i.name !== correctIon.name)
+        .map(i => {
+          let score = 0;
+          // Same charge is very tricky
+          if (i.charge === correctIon.charge) score += 10;
+          // Same first letter of name
+          if (i.name.charAt(0).toLowerCase() === correctFirstLetter) score += 8;
+          // Same chemical family (e.g., all halogen oxyanions)
+          if (correctFamily && getFamily(i.name) === correctFamily) score += 25;
+          // Same broad type
+          if (i.type === correctIon.type) score += 2;
+          // Same word root / prefix patterns
+          const correctPrefix = correctIon.name.split(' ')[0].toLowerCase();
+          const ionPrefix = i.name.split(' ')[0].toLowerCase();
+          if (correctPrefix === ionPrefix && correctPrefix.length > 3) score += 12;
+          return { ion: i, score };
+        });
+
+      scored.sort((a, b) => b.score - a.score);
+
+      const selected = scored.slice(0, count).map(s => s.ion);
+
+      // Fill with random remaining if not enough tricky ones found
+      if (selected.length < count) {
+        const usedNames = new Set([correctIon.name, ...selected.map(i => i.name)]);
+        const remaining = allIons.filter(i => !usedNames.has(i.name));
+        const needed = count - selected.length;
+        const extra = shuffle(remaining).slice(0, needed);
+        selected.push(...extra);
+      }
+
+      return selected;
     }
 
     function startQuiz() {
@@ -685,6 +790,15 @@
       badge.textContent = ion.type === 'cation' ? 'Cation' : 'Anion';
       badge.className = 'ion-badge ' + (ion.type === 'cation' ? 'badge-cation' : 'badge-anion');
 
+      const trickyBadge = document.getElementById('trickyBadge');
+      if (settings.tricky) {
+        trickyBadge.classList.remove('hidden');
+        document.getElementById('quizCard').classList.add('tricky');
+      } else {
+        trickyBadge.classList.add('hidden');
+        document.getElementById('quizCard').classList.remove('tricky');
+      }
+
       const qType = document.getElementById('questionType');
       const qText = document.getElementById('questionText');
       const qSub = document.getElementById('questionSub');
@@ -692,16 +806,23 @@
       if (mode === 'formulaToName') {
         qType.textContent = 'What is the name of this ion?';
         qText.textContent = ion.formula;
-        qSub.textContent = 'Select the correct name from the options below';
+        qSub.textContent = settings.tricky ? 'Careful — the wrong answers look very similar!' : 'Select the correct name from the options below';
       } else {
         qType.textContent = 'What is the formula of this ion?';
         qText.textContent = ion.name;
-        qSub.textContent = 'Select the correct formula from the options below';
+        qSub.textContent = settings.tricky ? 'Careful — the wrong answers look very similar!' : 'Select the correct formula from the options below';
       }
 
       const allIons = [...cations.map(c => ({...c, type: 'cation'})), ...anions.map(a => ({...a, type: 'anion'}))];
-      const wrongPool = allIons.filter(i => i.name !== ion.name);
-      const wrongs = shuffle(wrongPool).slice(0, 3);
+
+      let wrongs;
+      if (settings.tricky) {
+        wrongs = getTrickyDistractors(ion, allIons, 3);
+      } else {
+        const wrongPool = allIons.filter(i => i.name !== ion.name);
+        wrongs = shuffle(wrongPool).slice(0, 3);
+      }
+
       const options = shuffle([ion, ...wrongs]);
 
       const grid = document.getElementById('optionsGrid');
@@ -781,10 +902,16 @@
       document.getElementById('endStreak').textContent = state.bestStreak;
 
       let msg = '';
-      if (accuracy >= 90) msg = 'Outstanding! You\'re basically a chemist now! 🧪';
-      else if (accuracy >= 75) msg = 'Great work! You know your ions well! ⚡';
-      else if (accuracy >= 50) msg = 'Good effort! Keep practicing those tricky ones. 📚';
-      else msg = 'Keep studying! You\'ll get there. 💪';
+      if (settings.tricky) {
+        if (accuracy >= 80) msg = 'Incredible! You crushed Tricky Mode! 🧠🔥';
+        else if (accuracy >= 60) msg = 'Solid work — those similar ions are tough! ⚡';
+        else msg = 'Tricky Mode is brutal — keep grinding! 💪';
+      } else {
+        if (accuracy >= 90) msg = 'Outstanding! You\'re basically a chemist now! 🧪';
+        else if (accuracy >= 75) msg = 'Great work! You know your ions well! ⚡';
+        else if (accuracy >= 50) msg = 'Good effort! Keep practicing those tricky ones. 📚';
+        else msg = 'Keep studying! You\'ll get there. 💪';
+      }
       document.getElementById('endMessage').textContent = msg;
     }
 
